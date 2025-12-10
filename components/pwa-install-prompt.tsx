@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -25,6 +27,13 @@ export function PWAInstallPrompt() {
       return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.matchMedia("(display-mode: standalone)").matches
     }
 
+    const checkDismissedRecently = () => {
+      const dismissedTime = localStorage.getItem("pwa_prompt_dismissed_at")
+      if (!dismissedTime) return false
+      const timeSinceDissmissal = Date.now() - Number.parseInt(dismissedTime, 10)
+      return timeSinceDissmissal < 2 * 60 * 60 * 1000 // 2 hours
+    }
+
     if (checkInstalled()) {
       setIsInstalled(true)
       return
@@ -33,9 +42,12 @@ export function PWAInstallPrompt() {
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault()
       const promptEvent = event as BeforeInstallPromptEvent
-      setDeferredPrompt(promptEvent)
-      setShowPrompt(true)
-      console.log("[v0] Install prompt available")
+
+      if (!checkDismissedRecently()) {
+        setDeferredPrompt(promptEvent)
+        setShowPrompt(true)
+        console.log("[v0] Install prompt available")
+      }
     }
 
     const handleAppInstalled = () => {
@@ -43,13 +55,14 @@ export function PWAInstallPrompt() {
       setIsInstalled(true)
       setShowPrompt(false)
       setDeferredPrompt(null)
+      localStorage.removeItem("pwa_prompt_dismissed_at")
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
     window.addEventListener("appinstalled", handleAppInstalled)
 
     setIsIOS(checkIsIOS())
-    if (checkIsIOS()) {
+    if (checkIsIOS() && !checkDismissedRecently()) {
       setShowPrompt(true)
       console.log("[v0] iOS detected - showing install instructions")
     }
@@ -68,12 +81,19 @@ export function PWAInstallPrompt() {
       if (outcome === "accepted") {
         console.log("[v0] User accepted installation")
         setShowPrompt(false)
+      } else {
+        localStorage.setItem("pwa_prompt_dismissed_at", Date.now().toString())
       }
       setDeferredPrompt(null)
     }
   }
 
-  const handleDismiss = () => {
+  const handleDismiss = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    localStorage.setItem("pwa_prompt_dismissed_at", Date.now().toString())
     setShowPrompt(false)
   }
 
@@ -97,14 +117,13 @@ export function PWAInstallPrompt() {
                 <li>Tap "Add" to confirm</li>
               </ol>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
+            <button
               onClick={handleDismiss}
-              className="text-white/80 hover:bg-white/20 flex-shrink-0"
+              className="text-white/80 hover:bg-white/20 p-2 rounded-lg flex-shrink-0 transition-colors"
+              aria-label="Close install prompt"
             >
               <X className="w-4 h-4" />
-            </Button>
+            </button>
           </div>
           <Button
             variant="outline"
@@ -129,14 +148,13 @@ export function PWAInstallPrompt() {
             </h3>
             <p className="text-white/90 text-sm">Install as a native app for quick access anytime</p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
             onClick={handleDismiss}
-            className="text-white/80 hover:bg-white/20 flex-shrink-0"
+            className="text-white/80 hover:bg-white/20 p-2 rounded-lg flex-shrink-0 transition-colors"
+            aria-label="Close install prompt"
           >
             <X className="w-4 h-4" />
-          </Button>
+          </button>
         </div>
         <div className="flex gap-2 mt-4">
           <Button onClick={handleInstall} className="flex-1 bg-white text-primary hover:bg-white/90 font-semibold">

@@ -30,28 +30,52 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      if (response) {
-        return response
-      }
+  const url = new URL(event.request.url)
+  const isNavigationRequest = event.request.mode === "navigate"
 
-      return fetch(event.request)
+  if (isNavigationRequest) {
+    event.respondWith(
+      fetch(event.request)
         .then((response) => {
-          if (!response || response.status !== 200 || response.type !== "basic") {
+          if (!response || response.status !== 200) {
             return response
           }
-
           const responseToCache = response.clone()
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache)
           })
-
           return response
         })
         .catch(() => {
-          return caches.match("/")
-        })
-    }),
-  )
+          return caches.match(event.request).then((cachedResponse) => {
+            return cachedResponse || caches.match("/")
+          })
+        }),
+    )
+  } else {
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        if (response) {
+          return response
+        }
+
+        return fetch(event.request)
+          .then((response) => {
+            if (!response || response.status !== 200 || response.type !== "basic") {
+              return response
+            }
+
+            const responseToCache = response.clone()
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache)
+            })
+
+            return response
+          })
+          .catch(() => {
+            return caches.match("/")
+          })
+      }),
+    )
+  }
 })
