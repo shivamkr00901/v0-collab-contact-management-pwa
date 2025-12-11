@@ -2,20 +2,24 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import Link from "next/link"
-import { ArrowLeft, LogOut } from "lucide-react"
+import { ArrowLeft, LogOut, Moon, Sun } from "lucide-react"
 
 export default function SettingsPage() {
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     fetchUser()
   }, [])
 
@@ -84,12 +88,36 @@ export default function SettingsPage() {
           <h2 className="font-bold text-lg mb-6">Preferences</h2>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-              <label className="font-medium">Dark Mode</label>
-              <input type="checkbox" className="w-5 h-5" defaultChecked />
-            </div>
-            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-              <label className="font-medium">Notifications</label>
-              <input type="checkbox" className="w-5 h-5" defaultChecked />
+              <label className="font-medium">Theme</label>
+              {mounted && (
+                <div className="flex gap-2">
+                  <Button
+                    variant={theme === "light" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTheme("light")}
+                    className="gap-2"
+                  >
+                    <Sun className="w-4 h-4" />
+                    Light
+                  </Button>
+                  <Button
+                    variant={theme === "dark" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTheme("dark")}
+                    className="gap-2"
+                  >
+                    <Moon className="w-4 h-4" />
+                    Dark
+                  </Button>
+                  <Button
+                    variant={theme === "system" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTheme("system")}
+                  >
+                    System
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </Card>

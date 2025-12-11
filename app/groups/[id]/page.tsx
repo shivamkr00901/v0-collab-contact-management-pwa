@@ -6,13 +6,16 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import Link from "next/link"
-import { ArrowLeft, Plus, Phone, Mail, Trash2 } from "lucide-react"
+import { ArrowLeft, Plus, Mail, Trash2 } from "lucide-react"
 import { AddContactDialog } from "@/components/add-contact-dialog"
 import { ExportContactsButton } from "@/components/export-contacts-button"
 import { ImportContactsButton } from "@/components/import-contacts-button"
 import { SearchContacts } from "@/components/search-contacts"
 import { SortFilterDialog } from "@/components/sort-filter-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { DeleteGroupDialog } from "@/components/delete-group-dialog"
+import { DialerButton } from "@/components/dialer-button"
+import { ImportPhoneContactsButton } from "@/components/import-phone-contacts-button"
 
 interface Contact {
   id: string
@@ -42,9 +45,12 @@ export default function GroupPage() {
   const [openDialog, setOpenDialog] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState("name")
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchGroupAndContacts()
+    const interval = setInterval(fetchGroupAndContacts, 2000)
+    return () => clearInterval(interval)
   }, [groupId])
 
   useEffect(() => {
@@ -110,13 +116,11 @@ export default function GroupPage() {
     }
   }
 
-  const handleContactAdded = (newContact: Contact) => {
+  const handleContactCreated = (newContact: Contact) => {
     setContacts([...contacts, newContact])
-    setOpenDialog(false)
-    toast({ title: "Contact added successfully" })
   }
 
-  const handleImported = (importedContacts: Contact[]) => {
+  const handleContactsImported = (importedContacts: Contact[]) => {
     setContacts([...contacts, ...importedContacts])
   }
 
@@ -154,6 +158,14 @@ export default function GroupPage() {
             <h1 className="font-bold text-xl">{group.name}</h1>
             <p className="text-xs text-muted-foreground">{filteredContacts.length} contacts</p>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setDeleteDialogOpen(true)}
+            className="text-destructive hover:text-destructive/90"
+          >
+            <Trash2 className="w-5 h-5" />
+          </Button>
         </div>
       </div>
 
@@ -169,7 +181,7 @@ export default function GroupPage() {
             <div className="flex gap-2 flex-wrap">
               <AddContactDialog
                 groupId={groupId}
-                onContactAdded={handleContactAdded}
+                onContactAdded={handleContactCreated}
                 open={openDialog}
                 onOpenChange={setOpenDialog}
               >
@@ -178,21 +190,49 @@ export default function GroupPage() {
                   Add Contact
                 </Button>
               </AddContactDialog>
-              <ImportContactsButton groupId={groupId} onImported={handleImported} />
+              <ImportPhoneContactsButton groupId={groupId} onImported={handleContactsImported} />
+              <ImportContactsButton groupId={groupId} onImported={handleContactsImported} />
               <ExportContactsButton groupId={groupId} groupName={group.name} />
             </div>
           </div>
         </Card>
 
         {/* Contacts List */}
-        {contacts.length > 0 && (
-          <div className="mb-6 space-y-4">
-            <SearchContacts onSearch={setSearchQuery} placeholder="Search contacts..." />
-            <div className="flex gap-2 justify-end">
-              <SortFilterDialog onSort={setSortBy} currentSort={sortBy} />
+        <div className="mb-12 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-black mb-2">Contacts</h2>
+              <p className="text-muted-foreground">{filteredContacts.length} contacts</p>
+            </div>
+            <div className="flex gap-2">
+              <AddContactDialog
+                groupId={groupId}
+                open={openDialog}
+                onOpenChange={setOpenDialog}
+                onContactAdded={handleContactCreated}
+              >
+                <Button className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 gap-2">
+                  <Plus className="w-4 h-4" />
+                  Add
+                </Button>
+              </AddContactDialog>
             </div>
           </div>
-        )}
+
+          <div className="flex gap-2 flex-wrap">
+            <ImportPhoneContactsButton groupId={groupId} onImported={handleContactsImported} />
+            <ImportContactsButton groupId={groupId} onImported={handleContactsImported} />
+            <ExportContactsButton groupId={groupId} groupName={group.name} />
+            {contacts.length > 0 && <SortFilterDialog onSort={setSortBy} currentSort={sortBy} />}
+            {searchQuery && (
+              <Button variant="outline" size="sm" onClick={() => setSearchQuery("")}>
+                Clear search
+              </Button>
+            )}
+          </div>
+
+          {contacts.length > 0 && <SearchContacts onSearch={setSearchQuery} placeholder="Search contacts..." />}
+        </div>
 
         {filteredContacts.length === 0 && searchQuery ? (
           <Card className="border-2 border-dashed p-12 text-center">
@@ -207,63 +247,57 @@ export default function GroupPage() {
         ) : filteredContacts.length === 0 ? (
           <Card className="border-2 border-dashed p-12 text-center">
             <div className="space-y-4">
-              <div className="text-5xl">📞</div>
+              <div className="text-5xl">👥</div>
               <div>
                 <h3 className="font-bold text-lg mb-1">No contacts yet</h3>
-                <p className="text-muted-foreground mb-6">Add your first contact to this group or import from a file</p>
-                <div className="flex gap-3 justify-center flex-wrap">
-                  <AddContactDialog
-                    groupId={groupId}
-                    onContactAdded={handleContactAdded}
-                    open={openDialog}
-                    onOpenChange={setOpenDialog}
-                  >
-                    <Button className="bg-gradient-to-r from-primary to-secondary">Add Contact</Button>
-                  </AddContactDialog>
-                  <ImportContactsButton groupId={groupId} onImported={handleImported} />
-                </div>
+                <p className="text-muted-foreground mb-6">Add your first contact to get started</p>
+                <AddContactDialog
+                  groupId={groupId}
+                  open={openDialog}
+                  onOpenChange={setOpenDialog}
+                  onContactAdded={handleContactCreated}
+                >
+                  <Button className="bg-gradient-to-r from-primary to-secondary">Add Contact</Button>
+                </AddContactDialog>
               </div>
             </div>
           </Card>
         ) : (
-          <div className="space-y-3">
+          <div className="grid md:grid-cols-2 gap-4">
             {filteredContacts.map((contact) => (
-              <Card
-                key={contact.id}
-                className="p-6 hover:border-primary/50 hover:shadow-md hover:shadow-primary/20 transition-all duration-300 group"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-bold text-lg mb-3">{contact.name}</h3>
-                    <div className="space-y-2">
-                      {contact.phone_number && (
-                        <div className="flex items-center gap-3 text-muted-foreground">
-                          <Phone className="w-4 h-4 text-primary" />
-                          <a href={`tel:${contact.phone_number}`} className="hover:text-primary transition-colors">
-                            {contact.phone_number}
-                          </a>
-                        </div>
-                      )}
-                      {contact.email && (
-                        <div className="flex items-center gap-3 text-muted-foreground">
-                          <Mail className="w-4 h-4 text-secondary" />
-                          <a href={`mailto:${contact.email}`} className="hover:text-secondary transition-colors">
-                            {contact.email}
-                          </a>
-                        </div>
-                      )}
-                      {contact.notes && <p className="text-sm text-muted-foreground mt-2 italic">{contact.notes}</p>}
+              <Card key={contact.id} className="p-4 hover:border-primary/50 transition-all">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg">{contact.name}</h3>
+                      <p className="text-xs text-muted-foreground">Added by {contact.added_by_name}</p>
                     </div>
-                    {contact.added_by_name && (
-                      <p className="text-xs text-muted-foreground mt-3">Added by {contact.added_by_name}</p>
-                    )}
                   </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="space-y-1 text-sm">
+                    {contact.phone_number && <p className="font-mono">{contact.phone_number}</p>}
+                    {contact.email && <p className="font-mono text-blue-500">{contact.email}</p>}
+                    {contact.notes && <p className="text-muted-foreground">{contact.notes}</p>}
+                  </div>
+                  <div className="flex gap-2 pt-2 border-t border-border/50">
+                    {contact.phone_number && (
+                      <DialerButton phoneNumber={contact.phone_number} contactName={contact.name} />
+                    )}
+                    {contact.email && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => (window.location.href = `mailto:${contact.email}`)}
+                        className="gap-2"
+                      >
+                        <Mail className="w-4 h-4" />
+                        Email
+                      </Button>
+                    )}
                     <Button
-                      variant="ghost"
-                      size="icon"
+                      size="sm"
+                      variant="outline"
                       onClick={() => handleDeleteContact(contact.id)}
-                      className="text-destructive hover:bg-destructive/10"
+                      className="gap-2 text-destructive hover:text-destructive ml-auto"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -274,6 +308,13 @@ export default function GroupPage() {
           </div>
         )}
       </div>
+
+      <DeleteGroupDialog
+        groupId={groupId}
+        groupName={group.name}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      />
     </div>
   )
 }
